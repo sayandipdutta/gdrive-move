@@ -82,11 +82,11 @@ class DriveService(SupportRich):
             return True
 
     @property
-    def creds(self):
+    def creds(self) -> Credentials:
         return self._creds
 
     @property
-    def service(self):
+    def service(self) -> Resource:
         return self._service
 
     def get_creds(self) -> Credentials:
