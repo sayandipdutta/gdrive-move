@@ -136,7 +136,7 @@ celerybeat.pid
 
 # Environments
 !shared.env
-.env
+*.env
 .venv
 env/
 venv/
