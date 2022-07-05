@@ -110,6 +110,7 @@ class FolderType(Response):
 
 class FileType(Response):
     size: str
+    md5Checksum: str
 
 
 class Unit(AutoSize):
@@ -143,6 +144,7 @@ class File(BaseModel, extra=Extra.ignore):
     mimeType: str
     size: int
     parents: list[str]
+    md5Checksum: str
 
     def __hash__(self):
         return hash(self.id)

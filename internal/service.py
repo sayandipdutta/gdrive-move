@@ -34,6 +34,7 @@ from .datatypes import (
     Cluster,
     File,
     Folder,
+    Response,
     FileType,
     FolderType,
     ItemID,
@@ -188,7 +189,7 @@ class DriveService(SupportRich):
             resource = {
                 "service_account": self.creds,
                 "id": folder_id,
-                "fields": "files(id, name, mimeType, size, parents)",
+                "fields": "files(id, name, mimeType, md5Checksum, size, parents)",
             }
             self.progress.log("Started searching for all files.")
             dir_listing_task = self.progress.add_task(
@@ -223,7 +224,7 @@ class DriveService(SupportRich):
                     pageSize=self.page_size,
                     fields=(
                         "nextPageToken, "
-                        "files(id, name, mimeType, size, parents)"
+                        "files(id, name, mimeType, md5Checksum, size, parents)"
                     ),
                 ).execute()
                 results.extend(response.get('files', []))
@@ -372,7 +373,8 @@ class DriveService(SupportRich):
             "--disable_list_r"
         ]
         cwd = Path('~/github/BGFA/AutoRclone/').expanduser()
-        rc_cmd = shlex.split(f'rclone rc --rc-addr="localhost:{port}" core/stats')
+        rc_cmd = shlex.split(
+            f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
         size_bytes_done = 0
         printed_once = False
@@ -403,16 +405,20 @@ class DriveService(SupportRich):
                             error, log_locals=True
                         )
                         if time.perf_counter() - start > timeout:
-                            self.progress.update(copy_task, total=1, completed=1)
+                            self.progress.update(
+                                copy_task, total=1, completed=1)
                             proc.kill()
-                            self.progress.log(f"[red]Timed Out[/red]: {timeout=}")
+                            self.progress.log(
+                                f"[red]Timed Out[/red]: {timeout=}")
                             break
                         continue
                     except FileNotFoundError:
                         if time.perf_counter() - start > timeout:
-                            self.progress.update(copy_task, total=1, completed=1)
+                            self.progress.update(
+                                copy_task, total=1, completed=1)
                             proc.kill()
-                            self.progress.log(f"[red]Timed Out[/red]: {timeout=}")
+                            self.progress.log(
+                                f"[red]Timed Out[/red]: {timeout=}")
                             break
                         continue
                     response_processed = result.stdout.replace('\0', '')
@@ -467,7 +473,7 @@ class DriveService(SupportRich):
         try:
             item = self.service.files().create(
                 body=file_metadata,
-                fields="id, name, mimeType, size, parents"
+                fields="id, name, mimeType, md5Checksum, size, parents"
             ).execute()
         except HttpError as err:
             self.progress.log("[red]ERROR: While creating folder.", err)
@@ -494,7 +500,7 @@ class DriveService(SupportRich):
                     supportsAllDrives=True,
                     fields=(
                         'nextPageToken, '
-                        'files(id, name, mimeType, size, parents)'
+                        'files(id, name, mimeType, md5Checksum, size, parents)'
                     ),
                     pageToken=page_token,
                     **kwargs
@@ -511,14 +517,40 @@ class DriveService(SupportRich):
                               err, log_locals=True)
             return None
 
-    def search_by_id(self, id: str) -> Item:
+    @overload
+    def search_by_id(
+        self,
+        id: str,
+        *extra_fields: str,
+        response: Literal[True]
+    ) -> Response:
+        ...
+
+    @overload
+    def search_by_id(
+        self,
+        id: str,
+        *extra_fields: str,
+        response: Literal[False] = False
+    ) -> Item:
+        ...
+
+    def search_by_id(
+        self,
+        id: str,
+        *extra_fields: str,
+        response: bool = False
+    ) -> Item | Response:
         # TODO: merge with search
+        _fields = f", {', '.join(extra_fields)}" if extra_fields else ''
         item = self.service.files().get(
             fileId=id,
             supportsAllDrives=True,
             supportsTeamDrives=True,
-            fields="id, name, mimeType, size, parents"
+            fields="id, name, mimeType, md5Checksum, size, parents, md5Checksum" + _fields
         ).execute()
+        if response:
+            return item
         return categorize(item)
 
     def _get_files_from_parent(
@@ -547,7 +579,7 @@ class DriveService(SupportRich):
         return items
 
     @folder_to_id
-    def update_permission_recursively(self, folder_id: ItemID, total: int=None):
+    def update_permission_recursively(self, folder_id: ItemID, total: int = None):
         recursive_task = self.progress.add_task(
             "[magenta]Granting permissions recursively", total=total)
         self._permission_helper(folder_id)
@@ -559,7 +591,7 @@ class DriveService(SupportRich):
         items = self.service.files().list(
             q=f"'{folder_id}' in parents",
             spaces='drive',
-            fields='nextPageToken, files(id, name, mimeType, size, parents)',
+            fields='nextPageToken, files(id, name, mimeType, md5Checksum, size, parents)',
         ).execute().get('files', [])
         for item in items:
             self.update_permission(item['id'], recurse=True)
@@ -638,22 +670,12 @@ class DriveService(SupportRich):
         for file, parent in files_from_parent:
             total_files += 1
             fname = file.name.replace("'", "\\'")
-            query = f"""name='{fname}'"""  # and '{destination}' in parents"""
+            query = f"name='{fname}'"
             search_results = self.search(query, driveId=destination)
             for match in search_results:
                 if isinstance(match, Folder):
                     continue
-                # parent_ids = match.parents
-                # if len(parent_ids) > 1:
-                #     breakpoint()
-                # parents_in_dest = [
-                #     self.search_by_id(parent_id) for parent_id in parent_ids
-                # ]
-                # matching_parents = any(
-                #     p_dest.name == parent.name
-                #     for p_dest in parents_in_dest
-                # )
-                if (file.size == match.size):   # and matching_parents:
+                if (file.md5Checksum == match.md5Checksum):
                     nmatches += 1
                     copied.append(file)
                     break

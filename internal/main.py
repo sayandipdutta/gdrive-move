@@ -21,15 +21,15 @@ if __name__ == '__main__':
     # CLUSTER = True
     # NEW_FOLDER = True
     # MOVE = True
-    PERMISSION = True
-    COPY = True
+    # PERMISSION = True
+    # COPY = True
     REVIEW = True
     # DELETE = True
 
     with DriveService() as gdrive:
         # initial values
         # WARNING: Make sure new_folder is updated (if NEW_FOLDER==False)
-        new_folder = "1OgAX_sUTRKuqLm0X50da4ozhLHgnn3nj"
+        new_folder = "10c2x70g-tZbDIgIKnaLvpT8NiQxy9zzc"
         link = f"https://drive.google.com/drive/u/2/folders/{new_folder}"
         cluster_name = f'{cluster_prepend}_2'
         cluster: Cluster[Item] = Cluster()
