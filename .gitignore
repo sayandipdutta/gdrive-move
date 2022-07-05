@@ -1,3 +1,36 @@
+# Project specific
+/bkp/*
+/log/*
+quickstart.py
+**/credentials.json
+**/token.json
+
+# exclude everything
+AutoRClone/folderclone-master
+AutoRClone/.idea
+AutoRClone/accounts/*
+# /controller/*
+AutoRClone/credentials/*
+AutoRClone/rclone.conf
+AutoRClone/rclone*.conf
+AutoRClone/token.pickle
+AutoRClone/client*.apps.googleusercontent.com.json
+AutoRClone/credentials.json
+AutoRClone/rclone_sa.py
+AutoRClone/log_rclone.txt
+AutoRClone/log*.txt
+AutoRClone/current_sa.txt
+AutoRClone/accounts.zip
+AutoRClone/accounts1k.zip
+AutoRClone/accounts400.zip
+AutoRClone/accounts600.zip
+
+# exception to the rule
+AutoRClone/!credentials/.gsuite_only.txt
+AutoRClone/!credentials/.keep
+AutoRClone/!accounts/.keep
+# !controller/.keep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,3 @@
+[submodule "AutoRclone"]
+	path = AutoRclone
+	url = git@github.com:xyou365/AutoRclone.git
