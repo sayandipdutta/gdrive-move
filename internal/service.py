@@ -371,14 +371,14 @@ class DriveService(SupportRich):
             "-p", port,
             "--disable_list_r"
         ]
-        cwd = Path('~/github/BGFA/AutoRclone/').expanduser()
+        cwd = Path('~/github/BGFA_rclone/AutoRclone/').expanduser()
         rc_cmd = shlex.split(f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
         size_bytes_done = 0
         printed_once = False
         prev_done = 0
         no_download = 0
-        with open('autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
+        with open(cwd.parent / 'internal' / 'autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
             with subprocess.Popen(
                 command,
                 cwd=cwd,
@@ -422,9 +422,10 @@ class DriveService(SupportRich):
                         no_download += 1
                     if no_download >= 100:
                         self.progress.log(
-                            "No download for {no_download} times.",
+                            f"No download for {no_download} times.",
                             log_locals=True
                         )
+                        proc.kill()
                         break
                     if not printed_once:
                         print(size_bytes_done)

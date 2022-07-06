@@ -8,8 +8,8 @@ TEST = CLUSTER = NEW_FOLDER = MOVE = COPY = DELETE = REVIEW = PERMISSION = 0
 if __name__ == '__main__':
     # main()
     # breakpoint()
-    MAX_CLUSTER_SIZE = 100 * Unit.GB
-    # MAX_CLUSTER_SIZE = 100 * Unit.GB
+    # MAX_CLUSTER_SIZE = 700 * Unit.GB
+    MAX_CLUSTER_SIZE = 735 * Unit.GB
 
     SOURCE, HR_NAME, cluster_prepend, dp = "1JM4RkZxbV65gDGFVWvqRiCL_lpD-EuVA", "KG Freeleech", 'KG', 'Films'
     SOURCE, HR_NAME, cluster_prepend, dp = "1XvhVCE1s1uRZgx3fFTnKITPTXszVZ1eC", "Series", 'Series', 'BGFA_Series'
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     with DriveService() as gdrive:
         # initial values
         # WARNING: Make sure new_folder is updated (if NEW_FOLDER==False)
-        new_folder = "1OgAX_sUTRKuqLm0X50da4ozhLHgnn3nj"
+        new_folder = "1VecoNfJz5FQohsHTuEF6xzmTcjvU7t2a"
         link = f"https://drive.google.com/drive/u/2/folders/{new_folder}"
         cluster_name = f'{cluster_prepend}_2'
         cluster: Cluster[Item] = Cluster()
