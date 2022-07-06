@@ -4,6 +4,7 @@
 quickstart.py
 **/credentials.json
 **/token.json
+**/.ini
 
 # exclude everything
 AutoRClone/folderclone-master
