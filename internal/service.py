@@ -4,6 +4,8 @@
 # OPTIMIZE: Build a complete tree, and reuse when needed.
 # OPTIMIZE: Use cache.
 # FIX: Write tests.
+# TODO: Add custom errors.
+# TODO: Put all the settings in config file.
 # TODO: Init git.
 # TODO: Add logging.
 # TODO: Add docstring.
@@ -28,12 +30,13 @@ from rich.console import Console
 from rich.progress import TaskID
 # from rich.panel import Panel
 
-from . import TOKEN, CREDS
+from . import TOKEN, CREDS, config
 from .datatypes import (
     CopyStats,
     Cluster,
     File,
     Folder,
+    FileTree,
     Response,
     FileType,
     FolderType,
@@ -119,6 +122,38 @@ class DriveService(SupportRich):
                 tk.write(creds.to_json())
 
         return creds
+
+    def build_tree(self, source: ItemID) -> FileTree:
+        file_tree = FileTree()
+        item = self.search_by_id(source)
+        assert isinstance(item, Folder), "Can only build FileTree from Folder."
+
+        def _recursor(source: Folder, file_tree: FileTree, ancestors: list[ItemID] = list()):
+            item_id = source.id
+            folder = file_tree[item_id]
+            folder['kind'] = 'Folder'
+            folder['info'] = source
+            folder['ancestors'] = (ancestors[:])
+            folder['nitems'] = 0
+            folder['size'] = 0
+            content = self.list_dir(item_id)
+            new_ancestors = [*ancestors, item_id]
+            for it in content:
+                if isinstance(it, File):
+                    item_table = folder['items'][it.id]
+                    item_table['kind'] = 'File'
+                    item_table['info'] = it
+                    item_table['ancestors'] = (new_ancestors)
+                    folder['size'] += it.size
+                else:
+                    folder['items'] = _recursor(it, folder['items'], new_ancestors)
+                    folder['size'] += folder['items'][it.id]['size']
+                folder['nitems'] += 1
+            return file_tree
+        file_tree = _recursor(item, file_tree)
+        return file_tree
+        
+
 
     @overload
     def list_dir(
@@ -372,7 +407,9 @@ class DriveService(SupportRich):
             "-p", port,
             "--disable_list_r"
         ]
-        cwd = Path('~/github/BGFA/AutoRclone/').expanduser()
+        # FIX: Handle FileNotFoundError or KeyError
+        cwd = config.getpath('PATHS', 'rclone_path', fallback=Path()).expanduser()
+        log_path = config.getpath('PATHS', 'log_path', fallback=Path()).expanduser()
         rc_cmd = shlex.split(
             f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
@@ -380,7 +417,7 @@ class DriveService(SupportRich):
         printed_once = False
         prev_done = 0
         no_download = 0
-        with open('autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
+        with open(log_path / 'autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
             with subprocess.Popen(
                 command,
                 cwd=cwd,

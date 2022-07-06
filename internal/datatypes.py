@@ -198,6 +198,12 @@ class Cluster(Generic[T_Item]):
         )
 
 
+class FileTree(dict):
+    def __missing__(self, key: str) -> 'FileTree':
+        value = self[key] = type(self)()
+        return value
+
+
 def folder_to_id(func: Callable[P, T]) -> Callable[P, T]:
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
