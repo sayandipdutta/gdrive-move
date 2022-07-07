@@ -154,6 +154,28 @@ class DriveService(SupportRich):
         return file_tree
         
 
+    def is_contained(self, item: File, destination: ItemID) -> bool:
+        escaped_name = item.name.replace("'", "\\'")
+        query = f"name = '{escaped_name}'"
+        results = self.search(query, driveId=destination, files_only=True)
+        return any(item.md5Checksum == res.md5Checksum for res in results)
+
+    def prune_copied(self, tree: FileTree, node: ItemID, destination: ItemID):
+        root = tree[node]
+        if root['kind'] == 'File':
+            if self.is_contained(root['info'], destination):
+                self.delete(node)
+                for ancestor in root['ancestors']:
+                    ancestor['size'] -= root['size']
+                root['ancestors'][-1]['nitems'] -= 1
+                del tree[node]
+        else:
+            for item in list(root['items']):
+                self.prune_copied(root['items'], item, destination)
+            if root['items'].is_empty():
+                self.delete(node)
+                if root['ancestors']:
+                    root['ancestors'][-1]['nitems'] -= 1
 
     @overload
     def list_dir(
