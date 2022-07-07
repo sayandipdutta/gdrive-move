@@ -29,24 +29,23 @@ from rich.progress import (
     SpinnerColumn,
     TimeElapsedColumn,
     Task,
-    Text
 )
+from rich.text import Text
 
-
-__all__ = (
-    "FOLDER_MIME_TYPE",
-    "ItemID",
-    "Item",
-    "folder_to_id",
-    "File",
-    "Folder",
-    "FileType",
-    "FolderType",
-    "Unit",
-    "Size",
-    "SupportRich",
-)
-
+# __all__ = (
+#     "FOLDER_MIME_TYPE",
+#     "ItemID",
+#     "Item",
+#     "folder_to_id",
+#     "File",
+#     "Folder",
+#     "FileType",
+#     "FolderType",
+#     "Unit",
+#     "Size",
+#     "SupportRich",
+# )
+#
 FOLDER_MIME_TYPE: Literal['application/vnd.google-apps.folder'] = \
     'application/vnd.google-apps.folder'
 
@@ -202,6 +201,9 @@ class FileTree(dict):
     def __missing__(self, key: str) -> 'FileTree':
         value = self[key] = type(self)()
         return value
+
+    def is_empty(self):
+        return bool(self)
 
 
 def folder_to_id(func: Callable[P, T]) -> Callable[P, T]:

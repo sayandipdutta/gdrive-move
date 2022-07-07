@@ -128,7 +128,7 @@ class DriveService(SupportRich):
         item = self.search_by_id(source)
         assert isinstance(item, Folder), "Can only build FileTree from Folder."
 
-        def _recursor(source: Folder, file_tree: FileTree, ancestors: list[ItemID] = list()):
+        def _recursor(source: Folder, file_tree: FileTree, ancestors: list[ItemID] = list()) -> FileTree:
             item_id = source.id
             folder = file_tree[item_id]
             folder['kind'] = 'Folder'
@@ -137,7 +137,7 @@ class DriveService(SupportRich):
             folder['nitems'] = 0
             folder['size'] = 0
             content = self.list_dir(item_id)
-            new_ancestors = [*ancestors, item_id]
+            new_ancestors = [*ancestors, folder]
             for it in content:
                 if isinstance(it, File):
                     item_table = folder['items'][it.id]
@@ -146,13 +146,13 @@ class DriveService(SupportRich):
                     item_table['ancestors'] = (new_ancestors)
                     folder['size'] += it.size
                 else:
-                    folder['items'] = _recursor(it, folder['items'], new_ancestors)
+                    folder['items'] = _recursor(
+                        it, folder['items'], new_ancestors)
                     folder['size'] += folder['items'][it.id]['size']
                 folder['nitems'] += 1
             return file_tree
         file_tree = _recursor(item, file_tree)
         return file_tree
-        
 
     def is_contained(self, item: File, destination: ItemID) -> bool:
         escaped_name = item.name.replace("'", "\\'")
@@ -176,6 +176,13 @@ class DriveService(SupportRich):
                 self.delete(node)
                 if root['ancestors']:
                     root['ancestors'][-1]['nitems'] -= 1
+
+    def permit_tree(self, tree: FileTree, node: ItemID):
+        self._permission_helper(node)
+        root = tree[node]
+        if root['kind'] == 'Folder':
+            for item in root['items']:
+                self.permit_tree(root['items'], item)
 
     @overload
     def list_dir(
@@ -430,8 +437,10 @@ class DriveService(SupportRich):
             "--disable_list_r"
         ]
         # FIX: Handle FileNotFoundError or KeyError
-        cwd = config.getpath('PATHS', 'rclone_path', fallback=Path()).expanduser()
-        log_path = config.getpath('PATHS', 'log_path', fallback=Path()).expanduser()
+        cwd = config.getpath('PATHS', 'rclone_path',
+                             fallback=Path()).expanduser()
+        log_path = config.getpath(
+            'PATHS', 'log_path', fallback=Path()).expanduser()
         rc_cmd = shlex.split(
             f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
@@ -639,7 +648,7 @@ class DriveService(SupportRich):
     def _get_files_from_parent(
         self,
         source: ItemID,
-    ) -> list[tuple[File, Folder]]:
+    ) -> list[File]:
         # TODO: merge with list_dir
         items = []
         files, total = self.list_dir(
@@ -650,15 +659,9 @@ class DriveService(SupportRich):
             "[yellow]Gathering parents",
             total=total
         )
-        hack = False
         for item in files:
             self.progress.advance(listing_task, advance=1)
-            # HACK: DON'T NEED PARENT IF WE ARE NOT CHECKING IN REVIEW
-            if not hack:
-                parent = self.search_by_id(item.parents[0])
-                assert isinstance(parent, Folder), "Parent must be a Folder"
-                hack = True
-            items.append((item, parent))
+            items.append(item)
         return items
 
     @folder_to_id
@@ -750,7 +753,7 @@ class DriveService(SupportRich):
 
         review_task = self.progress.add_task(
             "[green]Reviewing", total=len(files_from_parent))
-        for file, parent in files_from_parent:
+        for file in files_from_parent:
             total_files += 1
             fname = file.name.replace("'", "\\'")
             query = f"name='{fname}'"
