@@ -542,16 +542,40 @@ class DriveService(SupportRich):
         self.progress.log("New folder created", folder)
         return folder
 
+    @overload
     def search(
         self,
         query: str,
+        /,
+        files_only: Literal[True],
+        **kwargs: ItemID
+    ) -> Generator[File, None, None]:
+        ...
+
+    @overload
+    def search(
+        self,
+        query: str,
+        /,
+        files_only: Literal[False] = False,
         **kwargs: ItemID
     ) -> Generator[Item, None, None]:
+        ...
+
+    def search(
+        self,
+        query: str,
+        /,
+        files_only: bool = False,
+        **kwargs: ItemID
+    ) -> Generator[Item, None, None] | Generator[File, None, None]:
         query = query
+        if files_only:
+            query += f" mimeType != '{FOLDER_MIME_TYPE}'"
         try:
             page_token = None
             while True:
-                response = self.service.files().list(
+                response = self.service.files().list(   # type: ignore
                     q=query,
                     spaces='drive',
                     corpora='drive',
