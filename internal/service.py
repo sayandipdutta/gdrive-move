@@ -11,7 +11,9 @@
 
 from functools import cache
 import json
+import os
 from pathlib import Path
+from signal import SIGINT
 import shlex
 import subprocess
 import time
@@ -404,14 +406,14 @@ class DriveService(SupportRich):
                         )
                         if time.perf_counter() - start > timeout:
                             self.progress.update(copy_task, total=1, completed=1)
-                            proc.kill()
+                            os.kill(proc.pid, SIGINT)
                             self.progress.log(f"[red]Timed Out[/red]: {timeout=}")
                             break
                         continue
                     except FileNotFoundError:
                         if time.perf_counter() - start > timeout:
                             self.progress.update(copy_task, total=1, completed=1)
-                            proc.kill()
+                            os.kill(proc.pid, SIGINT)
                             self.progress.log(f"[red]Timed Out[/red]: {timeout=}")
                             break
                         continue
@@ -420,12 +422,11 @@ class DriveService(SupportRich):
                     size_bytes_done = int(response_processed_json['bytes'])
                     if prev_done == size_bytes_done:
                         no_download += 1
-                    if no_download >= 100:
+                    if no_download >= 300:
                         self.progress.log(
                             f"No download for {no_download} times.",
-                            log_locals=True
                         )
-                        proc.kill()
+                        os.kill(proc.pid, SIGINT)
                         break
                     if not printed_once:
                         print(size_bytes_done)
