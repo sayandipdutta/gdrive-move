@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # CLUSTER = True
     # NEW_FOLDER = True
     # MOVE = True
-    PERMISSION = True
+    # PERMISSION = True
     COPY = True
     REVIEW = True
     # DELETE = True
