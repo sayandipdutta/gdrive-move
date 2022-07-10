@@ -128,7 +128,9 @@ class DriveService(SupportRich):
         item = self.search_by_id(source)
         assert isinstance(item, Folder), "Can only build FileTree from Folder."
 
-        def _recursor(source: Folder, file_tree: FileTree, ancestors: list[ItemID] = list()) -> FileTree:
+        def _recursor(
+            source: Folder, file_tree: FileTree, ancestors: list[Item] = list()
+        ) -> FileTree:
             item_id = source.id
             folder = file_tree[item_id]
             folder['kind'] = 'Folder'
@@ -176,13 +178,6 @@ class DriveService(SupportRich):
                 self.delete(node)
                 if root['ancestors']:
                     root['ancestors'][-1]['nitems'] -= 1
-
-    def permit_tree(self, tree: FileTree, node: ItemID):
-        self._permission_helper(node)
-        root = tree[node]
-        if root['kind'] == 'Folder':
-            for item in root['items']:
-                self.permit_tree(root['items'], item)
 
     @overload
     def list_dir(
@@ -448,7 +443,8 @@ class DriveService(SupportRich):
         printed_once = False
         prev_done = 0
         no_download = 0
-        with open(log_path / 'autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
+        rclonelog = log_path / 'autorclone.log'
+        with open(rclonelog, 'w+', encoding='utf-8', buffering=1) as fh:
             with subprocess.Popen(
                 command,
                 cwd=cwd,
@@ -639,7 +635,7 @@ class DriveService(SupportRich):
             fileId=id,
             supportsAllDrives=True,
             supportsTeamDrives=True,
-            fields="id, name, mimeType, md5Checksum, size, parents, md5Checksum" + _fields
+            fields="id, name, mimeType, md5Checksum, size, parents" + _fields
         ).execute()
         if response:
             return item
