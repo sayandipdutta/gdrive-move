@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # main()
     # breakpoint()
     # MAX_CLUSTER_SIZE = 700 * Unit.GB
-    MAX_CLUSTER_SIZE = 800 * Unit.GB
+    MAX_CLUSTER_SIZE = 600 * Unit.GB
 
     SOURCE, HR_NAME, cluster_prepend, dp = "1JM4RkZxbV65gDGFVWvqRiCL_lpD-EuVA", "KG Freeleech", 'KG', 'Films'
     SOURCE, HR_NAME, cluster_prepend, dp = "1XvhVCE1s1uRZgx3fFTnKITPTXszVZ1eC", "Series", 'Series', 'BGFA_Series'
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # CLUSTER = True
     # NEW_FOLDER = True
     # MOVE = True
-    # PERMISSION = True
+    PERMISSION = True
     COPY = True
     REVIEW = True
     # DELETE = True
@@ -29,9 +29,9 @@ if __name__ == '__main__':
     with DriveService() as gdrive:
         # initial values
         # WARNING: Make sure new_folder is updated (if NEW_FOLDER==False)
-        new_folder = "1-P9E5b8I-w4eMP-3nFuLHTye6hp9HcQu"
+        new_folder = "12RAZlGpwveRgqyd0d_j3pgIrWZfawXQi"
         link = f"https://drive.google.com/drive/u/2/folders/{new_folder}"
-        cluster_name = f'{cluster_prepend}_4'
+        cluster_name = f'{cluster_prepend}_5'
         cluster: Cluster[Item] = Cluster()
         all_copied = False
         size_hint = None
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
         if CLUSTER:
             items = gdrive.list_dir(SOURCE, log=True)
-            exclude = {"Series_1", "Films_1", "Films_2", "Films_3"}
+            exclude = {"Series_1", "Films_1", "Films_2", "Films_3", "Films_4"}
             clusters = gdrive.make_cluster(
                 items,
                 upper_limit=MAX_CLUSTER_SIZE,
