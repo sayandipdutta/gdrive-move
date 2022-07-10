@@ -29,7 +29,7 @@ if __name__ == '__main__':
     with DriveService() as gdrive:
         # initial values
         # WARNING: Make sure new_folder is updated (if NEW_FOLDER==False)
-        new_folder = "12RAZlGpwveRgqyd0d_j3pgIrWZfawXQi"
+        new_folder = "10c2x70g-tZbDIgIKnaLvpT8NiQxy9zzc"
         link = f"https://drive.google.com/drive/u/2/folders/{new_folder}"
         cluster_name = f'{cluster_prepend}_5'
         cluster: Cluster[Item] = Cluster()

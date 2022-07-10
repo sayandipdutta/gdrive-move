@@ -4,6 +4,8 @@
 # OPTIMIZE: Build a complete tree, and reuse when needed.
 # OPTIMIZE: Use cache.
 # FIX: Write tests.
+# TODO: Add custom errors.
+# TODO: Put all the settings in config file.
 # TODO: Init git.
 # TODO: Add logging.
 # TODO: Add docstring.
@@ -30,12 +32,14 @@ from rich.console import Console
 from rich.progress import TaskID
 # from rich.panel import Panel
 
-from . import TOKEN, CREDS
+from . import TOKEN, CREDS, config
 from .datatypes import (
     CopyStats,
     Cluster,
     File,
     Folder,
+    FileTree,
+    Response,
     FileType,
     FolderType,
     ItemID,
@@ -83,11 +87,11 @@ class DriveService(SupportRich):
             return True
 
     @property
-    def creds(self):
+    def creds(self) -> Credentials:
         return self._creds
 
     @property
-    def service(self):
+    def service(self) -> Resource:
         return self._service
 
     def get_creds(self) -> Credentials:
@@ -120,6 +124,62 @@ class DriveService(SupportRich):
                 tk.write(creds.to_json())
 
         return creds
+
+    def build_tree(self, source: ItemID) -> FileTree:
+        file_tree = FileTree()
+        item = self.search_by_id(source)
+        assert isinstance(item, Folder), "Can only build FileTree from Folder."
+
+        def _recursor(
+            source: Folder, file_tree: FileTree, ancestors: list[Item] = list()
+        ) -> FileTree:
+            item_id = source.id
+            folder = file_tree[item_id]
+            folder['kind'] = 'Folder'
+            folder['info'] = source
+            folder['ancestors'] = (ancestors[:])
+            folder['nitems'] = 0
+            folder['size'] = 0
+            content = self.list_dir(item_id)
+            new_ancestors = [*ancestors, folder]
+            for it in content:
+                if isinstance(it, File):
+                    item_table = folder['items'][it.id]
+                    item_table['kind'] = 'File'
+                    item_table['info'] = it
+                    item_table['ancestors'] = (new_ancestors)
+                    folder['size'] += it.size
+                else:
+                    folder['items'] = _recursor(
+                        it, folder['items'], new_ancestors)
+                    folder['size'] += folder['items'][it.id]['size']
+                folder['nitems'] += 1
+            return file_tree
+        file_tree = _recursor(item, file_tree)
+        return file_tree
+
+    def is_contained(self, item: File, destination: ItemID) -> bool:
+        escaped_name = item.name.replace("'", "\\'")
+        query = f"name = '{escaped_name}'"
+        results = self.search(query, driveId=destination, files_only=True)
+        return any(item.md5Checksum == res.md5Checksum for res in results)
+
+    def prune_copied(self, tree: FileTree, node: ItemID, destination: ItemID):
+        root = tree[node]
+        if root['kind'] == 'File':
+            if self.is_contained(root['info'], destination):
+                self.delete(node)
+                for ancestor in root['ancestors']:
+                    ancestor['size'] -= root['size']
+                root['ancestors'][-1]['nitems'] -= 1
+                del tree[node]
+        else:
+            for item in list(root['items']):
+                self.prune_copied(root['items'], item, destination)
+            if root['items'].is_empty():
+                self.delete(node)
+                if root['ancestors']:
+                    root['ancestors'][-1]['nitems'] -= 1
 
     @overload
     def list_dir(
@@ -190,7 +250,7 @@ class DriveService(SupportRich):
             resource = {
                 "service_account": self.creds,
                 "id": folder_id,
-                "fields": "files(id, name, mimeType, size, parents)",
+                "fields": "files(id, name, mimeType, md5Checksum, size, parents)",
             }
             self.progress.log("Started searching for all files.")
             dir_listing_task = self.progress.add_task(
@@ -225,7 +285,7 @@ class DriveService(SupportRich):
                     pageSize=self.page_size,
                     fields=(
                         "nextPageToken, "
-                        "files(id, name, mimeType, size, parents)"
+                        "files(id, name, mimeType, md5Checksum, size, parents)"
                     ),
                 ).execute()
                 results.extend(response.get('files', []))
@@ -373,14 +433,20 @@ class DriveService(SupportRich):
             "-p", port,
             "--disable_list_r"
         ]
-        cwd = Path('~/github/BGFA_rclone/AutoRclone/').expanduser()
-        rc_cmd = shlex.split(f'rclone rc --rc-addr="localhost:{port}" core/stats')
+        # FIX: Handle FileNotFoundError or KeyError
+        cwd = config.getpath('PATHS', 'rclone_path',
+                             fallback=Path()).expanduser()
+        log_path = config.getpath(
+            'PATHS', 'log_path', fallback=Path()).expanduser()
+        rc_cmd = shlex.split(
+            f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
         size_bytes_done = 0
         printed_once = False
         prev_done = 0
         no_download = 0
-        with open(cwd.parent / 'internal' / 'autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
+        rclonelog = log_path / 'autorclone.log'
+        with open(rclonelog, 'w+', encoding='utf-8', buffering=1) as fh:
             with subprocess.Popen(
                 command,
                 cwd=cwd,
@@ -405,16 +471,20 @@ class DriveService(SupportRich):
                             error, log_locals=True
                         )
                         if time.perf_counter() - start > timeout:
-                            self.progress.update(copy_task, total=1, completed=1)
-                            os.kill(proc.pid, SIGINT)
-                            self.progress.log(f"[red]Timed Out[/red]: {timeout=}")
+                            self.progress.update(
+                                copy_task, total=1, completed=1)
+                            proc.kill()
+                            self.progress.log(
+                                f"[red]Timed Out[/red]: {timeout=}")
                             break
                         continue
                     except FileNotFoundError:
                         if time.perf_counter() - start > timeout:
-                            self.progress.update(copy_task, total=1, completed=1)
-                            os.kill(proc.pid, SIGINT)
-                            self.progress.log(f"[red]Timed Out[/red]: {timeout=}")
+                            self.progress.update(
+                                copy_task, total=1, completed=1)
+                            proc.kill()
+                            self.progress.log(
+                                f"[red]Timed Out[/red]: {timeout=}")
                             break
                         continue
                     response_processed = result.stdout.replace('\0', '')
@@ -469,7 +539,7 @@ class DriveService(SupportRich):
         try:
             item = self.service.files().create(
                 body=file_metadata,
-                fields="id, name, mimeType, size, parents"
+                fields="id, name, mimeType, md5Checksum, size, parents"
             ).execute()
         except HttpError as err:
             self.progress.log("[red]ERROR: While creating folder.", err)
@@ -479,16 +549,40 @@ class DriveService(SupportRich):
         self.progress.log("New folder created", folder)
         return folder
 
+    @overload
     def search(
         self,
         query: str,
+        /,
+        files_only: Literal[True],
+        **kwargs: ItemID
+    ) -> Generator[File, None, None]:
+        ...
+
+    @overload
+    def search(
+        self,
+        query: str,
+        /,
+        files_only: Literal[False] = False,
         **kwargs: ItemID
     ) -> Generator[Item, None, None]:
+        ...
+
+    def search(
+        self,
+        query: str,
+        /,
+        files_only: bool = False,
+        **kwargs: ItemID
+    ) -> Generator[Item, None, None] | Generator[File, None, None]:
         query = query
+        if files_only:
+            query += f" mimeType != '{FOLDER_MIME_TYPE}'"
         try:
             page_token = None
             while True:
-                response = self.service.files().list(
+                response = self.service.files().list(   # type: ignore
                     q=query,
                     spaces='drive',
                     corpora='drive',
@@ -496,7 +590,7 @@ class DriveService(SupportRich):
                     supportsAllDrives=True,
                     fields=(
                         'nextPageToken, '
-                        'files(id, name, mimeType, size, parents)'
+                        'files(id, name, mimeType, md5Checksum, size, parents)'
                     ),
                     pageToken=page_token,
                     **kwargs
@@ -513,20 +607,46 @@ class DriveService(SupportRich):
                               err, log_locals=True)
             return None
 
-    def search_by_id(self, id: str) -> Item:
+    @overload
+    def search_by_id(
+        self,
+        id: str,
+        *extra_fields: str,
+        response: Literal[True]
+    ) -> Response:
+        ...
+
+    @overload
+    def search_by_id(
+        self,
+        id: str,
+        *extra_fields: str,
+        response: Literal[False] = False
+    ) -> Item:
+        ...
+
+    def search_by_id(
+        self,
+        id: str,
+        *extra_fields: str,
+        response: bool = False
+    ) -> Item | Response:
         # TODO: merge with search
+        _fields = f", {', '.join(extra_fields)}" if extra_fields else ''
         item = self.service.files().get(
             fileId=id,
             supportsAllDrives=True,
             supportsTeamDrives=True,
-            fields="id, name, mimeType, size, parents"
+            fields="id, name, mimeType, md5Checksum, size, parents" + _fields
         ).execute()
+        if response:
+            return item
         return categorize(item)
 
     def _get_files_from_parent(
         self,
         source: ItemID,
-    ) -> list[tuple[File, Folder]]:
+    ) -> list[File]:
         # TODO: merge with list_dir
         items = []
         files, total = self.list_dir(
@@ -537,19 +657,13 @@ class DriveService(SupportRich):
             "[yellow]Gathering parents",
             total=total
         )
-        hack = False
         for item in files:
             self.progress.advance(listing_task, advance=1)
-            # HACK: DON'T NEED PARENT IF WE ARE NOT CHECKING IN REVIEW
-            if not hack:
-                parent = self.search_by_id(item.parents[0])
-                assert isinstance(parent, Folder), "Parent must be a Folder"
-                hack = True
-            items.append((item, parent))
+            items.append(item)
         return items
 
     @folder_to_id
-    def update_permission_recursively(self, folder_id: ItemID, total: int=None):
+    def update_permission_recursively(self, folder_id: ItemID, total: int = None):
         recursive_task = self.progress.add_task(
             "[magenta]Granting permissions recursively", total=total)
         self._permission_helper(folder_id)
@@ -561,7 +675,7 @@ class DriveService(SupportRich):
         items = self.service.files().list(
             q=f"'{folder_id}' in parents",
             spaces='drive',
-            fields='nextPageToken, files(id, name, mimeType, size, parents)',
+            fields='nextPageToken, files(id, name, mimeType, md5Checksum, size, parents)',
         ).execute().get('files', [])
         for item in items:
             self.update_permission(item['id'], recurse=True)
@@ -637,25 +751,15 @@ class DriveService(SupportRich):
 
         review_task = self.progress.add_task(
             "[green]Reviewing", total=len(files_from_parent))
-        for file, parent in files_from_parent:
+        for file in files_from_parent:
             total_files += 1
             fname = file.name.replace("'", "\\'")
-            query = f"""name='{fname}'"""  # and '{destination}' in parents"""
+            query = f"name='{fname}'"
             search_results = self.search(query, driveId=destination)
             for match in search_results:
                 if isinstance(match, Folder):
                     continue
-                # parent_ids = match.parents
-                # if len(parent_ids) > 1:
-                #     breakpoint()
-                # parents_in_dest = [
-                #     self.search_by_id(parent_id) for parent_id in parent_ids
-                # ]
-                # matching_parents = any(
-                #     p_dest.name == parent.name
-                #     for p_dest in parents_in_dest
-                # )
-                if (file.size == match.size):   # and matching_parents:
+                if (file.md5Checksum == match.md5Checksum):
                     nmatches += 1
                     copied.append(file)
                     break

@@ -29,24 +29,23 @@ from rich.progress import (
     SpinnerColumn,
     TimeElapsedColumn,
     Task,
-    Text
 )
+from rich.text import Text
 
-
-__all__ = (
-    "FOLDER_MIME_TYPE",
-    "ItemID",
-    "Item",
-    "folder_to_id",
-    "File",
-    "Folder",
-    "FileType",
-    "FolderType",
-    "Unit",
-    "Size",
-    "SupportRich",
-)
-
+# __all__ = (
+#     "FOLDER_MIME_TYPE",
+#     "ItemID",
+#     "Item",
+#     "folder_to_id",
+#     "File",
+#     "Folder",
+#     "FileType",
+#     "FolderType",
+#     "Unit",
+#     "Size",
+#     "SupportRich",
+# )
+#
 FOLDER_MIME_TYPE: Literal['application/vnd.google-apps.folder'] = \
     'application/vnd.google-apps.folder'
 
@@ -110,6 +109,7 @@ class FolderType(Response):
 
 class FileType(Response):
     size: str
+    md5Checksum: str
 
 
 class Unit(AutoSize):
@@ -143,6 +143,7 @@ class File(BaseModel, extra=Extra.ignore):
     mimeType: str
     size: int
     parents: list[str]
+    md5Checksum: str
 
     def __hash__(self):
         return hash(self.id)
@@ -194,6 +195,15 @@ class Cluster(Generic[T_Item]):
             f"{self.__class__.__name__}"
             f"(cluster=[...], size={self._hr_size}, nitems={self.nitems})"
         )
+
+
+class FileTree(dict):
+    def __missing__(self, key: str) -> 'FileTree':
+        value = self[key] = type(self)()
+        return value
+
+    def is_empty(self):
+        return bool(self)
 
 
 def folder_to_id(func: Callable[P, T]) -> Callable[P, T]:
