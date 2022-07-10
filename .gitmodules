@@ -1,3 +1,0 @@
-[submodule "AutoRclone"]
-	path = AutoRclone
-	url = git@github.com:sayandipdutta/AutoRclone.git
