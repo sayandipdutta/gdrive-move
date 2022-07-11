@@ -209,6 +209,16 @@ class FileTree(dict):
         return bool(self)
 
 
+def add_task(**kwargs: Any) -> Callable[[Callable[Concatenate[TaskID, P], T]], Callable[P, T]]:
+    def decorator(func: Callable[Concatenate[TaskID, P], T]) -> Callable[P, T]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            self: 'DriveService' = args[0]
+            task = self.progress.add_task(func.__name__, **kwargs)
+            return func(task, *args, **kwargs)
+        return wrapper
+    return decorator
+
 def folder_to_id(func: Callable[P, T]) -> Callable[P, T]:
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
