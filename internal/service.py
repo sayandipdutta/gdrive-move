@@ -405,20 +405,25 @@ class DriveService(SupportRich):
                 total=total
             )
 
+            items = []
             for each in item:
-                self.move(each, destination=destination)
+                resp = self.move(each, destination=destination)
+                items.append(categorize(resp))
                 self.progress.advance(moving_task, advance=1)
             self.progress.log(f"Total top-level folders moved: {total}")
+
+            return items
 
         else:
             self.progress.log(f"Moving {item.name} to {destination}")
             previous_parents = ", ".join(item.parents)
             try:
-                _ = self.service.files().update(
+                resp = self.service.files().update(
                     fileId=item.id,
                     addParents=destination,
                     removeParents=previous_parents,
                     fields='id, name, mimeType, trashed, md5Checksum, size, parents',
+                    **kwargs,
                 ).execute()
             except HttpError as err:
                 self.progress.log("ERROR: occurred while moving.", err,
@@ -426,6 +431,7 @@ class DriveService(SupportRich):
             except TimeoutError as err:
                 self.progress.log("ERROR: occurred while moving.", err,
                                   log_locals=True)
+            return categorize(resp)
 
     @folder_to_id
     def copy(
