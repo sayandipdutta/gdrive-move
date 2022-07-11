@@ -253,7 +253,6 @@ class DriveService(SupportRich):
             resource = {
                 "service_account": self.creds,
                 "id": folder_id,
-                "fields": "files(id, name, mimeType, md5Checksum, size, parents)",
                 "fields": "files(id, name, mimeType, trashed, md5Checksum, size, parents)",
             }
             self.progress.log("Started searching for all files.")
@@ -289,7 +288,6 @@ class DriveService(SupportRich):
                     pageSize=self.page_size,
                     fields=(
                         "nextPageToken, "
-                        "files(id, name, mimeType, md5Checksum, size, parents)"
                         "files(id, name, mimeType, trashed, md5Checksum, size, parents)"
                     ),
                 ).execute()
@@ -399,7 +397,6 @@ class DriveService(SupportRich):
                     fileId=item.id,
                     addParents=destination,
                     removeParents=previous_parents,
-                    fields='id, parents'
                     fields='id, name, mimeType, trashed, md5Checksum, size, parents',
                 ).execute()
             except HttpError as err:
@@ -545,7 +542,6 @@ class DriveService(SupportRich):
         try:
             item = self.service.files().create(
                 body=file_metadata,
-                fields="id, name, mimeType, md5Checksum, size, parents"
                 fields="id, name, mimeType, trashed, md5Checksum, size, parents",
             ).execute()
         except HttpError as err:
@@ -597,7 +593,6 @@ class DriveService(SupportRich):
                     supportsAllDrives=True,
                     fields=(
                         'nextPageToken, '
-                        'files(id, name, mimeType, md5Checksum, size, parents)'
                         'files(id, name, mimeType, trashed, trashed, md5Checksum, size, parents)'
                     ),
                     pageToken=page_token,
@@ -645,7 +640,6 @@ class DriveService(SupportRich):
             fileId=id,
             supportsAllDrives=True,
             supportsTeamDrives=True,
-            fields="id, name, mimeType, md5Checksum, size, parents" + _fields
             fields="id, name, mimeType, trashed, md5Checksum, size, parents" + _fields
         ).execute()
         if response:
@@ -684,7 +678,6 @@ class DriveService(SupportRich):
         items = self.service.files().list(
             q=f"'{folder_id}' in parents",
             spaces='drive',
-            fields='nextPageToken, files(id, name, mimeType, md5Checksum, size, parents)',
             fields='nextPageToken, files(id, name, mimeType, trashed, md5Checksum, size, parents)',
         ).execute().get('files', [])
         for item in items:
