@@ -101,6 +101,7 @@ class Response(TypedDict):
     name: str
     mimeType: str
     parents: list[str]
+    trashed: str
 
 
 class FolderType(Response):
@@ -144,6 +145,7 @@ class File(BaseModel, extra=Extra.ignore):
     size: int
     parents: list[str]
     md5Checksum: str
+    trashed: str
 
     def __hash__(self):
         return hash(self.id)
@@ -154,6 +156,7 @@ class Folder(BaseModel, extra=Extra.ignore):
     name: str
     mimeType: str
     parents: list[str]
+    trashed: str
 
     @validator('mimeType')
     def fixed_mimeType(cls, v):
