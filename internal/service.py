@@ -370,13 +370,34 @@ class DriveService(SupportRich):
         yield Cluster(cluster[:], size, item_count)
         self.progress.update(clustering_task, completed=size, total=size)
 
+    @overload
+    def move(
+        self,
+        item: Item,
+        *,
+        destination: ItemID,
+        **kwargs: bool
+    ) -> Item:
+        ...
+
+    @overload
+    def move(
+        self,
+        item: Cluster[Item],
+        *,
+        destination: ItemID,
+        **kwargs: bool
+    ) -> list[Item]:
+        ...
+
     @folder_to_id
     def move(
         self,
         item: Item | Cluster[Item],
         *,
         destination: ItemID,
-    ):
+        **kwargs: bool
+    ) -> Item | list[Item]:
         if not isinstance(item, File | Folder):
             total = len(list(item))
             moving_task = self.progress.add_task(
