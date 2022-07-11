@@ -125,13 +125,16 @@ class DriveService(SupportRich):
 
         return creds
 
-    def build_tree(self, source: ItemID) -> FileTree:
+    def build_tree(self, source: ItemID, *, from_: Iterable[Item] | None = None) -> FileTree:
         file_tree = FileTree()
         item = self.search_by_id(source)
         assert isinstance(item, Folder), "Can only build FileTree from Folder."
 
         def _recursor(
-            source: Folder, file_tree: FileTree, ancestors: list[Item] = list()
+            source: Folder,
+            file_tree: FileTree,
+            ancestors: list[Item] = list(),
+            from_: Iterable[Item] | None = None
         ) -> FileTree:
             item_id = source.id
             folder = file_tree[item_id]
@@ -140,7 +143,7 @@ class DriveService(SupportRich):
             folder['ancestors'] = (ancestors[:])
             folder['nitems'] = 0
             folder['size'] = 0
-            content = self.list_dir(item_id)
+            content = self.list_dir(item_id) if from_ is None else from_
             new_ancestors = [*ancestors, folder]
             for it in content:
                 if isinstance(it, File):
@@ -155,7 +158,7 @@ class DriveService(SupportRich):
                     folder['size'] += folder['items'][it.id]['size']
                 folder['nitems'] += 1
             return file_tree
-        file_tree = _recursor(item, file_tree)
+        file_tree = _recursor(item, file_tree, from_=from_)
         return file_tree
 
     def is_contained(self, item: File, destination: ItemID) -> bool:
