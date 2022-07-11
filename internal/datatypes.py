@@ -3,8 +3,10 @@ from enum import IntEnum, auto
 from functools import wraps
 from inspect import signature
 from typing import (
+    Any,
     Callable,
     ClassVar,
+    Concatenate,
     Generic,
     Literal,
     NamedTuple,
@@ -25,6 +27,7 @@ from pydantic import (
 from rich.console import Console
 from rich.progress import (
     Progress,
+    TaskID,
     TransferSpeedColumn,
     SpinnerColumn,
     TimeElapsedColumn,
@@ -101,7 +104,7 @@ class Response(TypedDict):
     name: str
     mimeType: str
     parents: list[str]
-    trashed: str
+    trashed: bool
 
 
 class FolderType(Response):
@@ -145,7 +148,7 @@ class File(BaseModel, extra=Extra.ignore):
     size: int
     parents: list[str]
     md5Checksum: str
-    trashed: str
+    trashed: bool
 
     def __hash__(self):
         return hash(self.id)
@@ -156,7 +159,7 @@ class Folder(BaseModel, extra=Extra.ignore):
     name: str
     mimeType: str
     parents: list[str]
-    trashed: str
+    trashed: bool
 
     @validator('mimeType')
     def fixed_mimeType(cls, v):
