@@ -558,7 +558,8 @@ class DriveService(SupportRich):
         self,
         name: str,
         *,
-        destination: ItemID
+        destination: ItemID,
+        **kwargs: bool,
     ) -> Folder:
         file_metadata = {
             'name': name,
@@ -570,6 +571,7 @@ class DriveService(SupportRich):
             item = self.service.files().create(
                 body=file_metadata,
                 fields="id, name, mimeType, trashed, md5Checksum, size, parents",
+                **kwargs,
             ).execute()
         except HttpError as err:
             self.progress.log("[red]ERROR: While creating folder.", err)
