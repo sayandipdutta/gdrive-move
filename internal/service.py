@@ -51,7 +51,6 @@ from .datatypes import (
     format_size
 )
 
-
 # NOTE: If modifying these scopes, delete the file token.json.
 SCOPES = [
     'https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -484,7 +483,7 @@ class DriveService(SupportRich):
             items = []
             for each in item:
                 resp = self.move(each, destination=destination)
-                items.append(categorize(resp))
+                items.append(resp)
                 self.progress.advance(moving_task, advance=1)
             self.progress.log(f"Total top-level folders moved: {total}")
 
@@ -501,6 +500,7 @@ class DriveService(SupportRich):
                     fields='id, name, mimeType, trashed, md5Checksum, size, parents',
                     **kwargs,
                 ).execute()
+                return categorize(resp)
             except HttpError as err:
                 self.progress.log("ERROR: occurred while moving.", err,
                                   log_locals=True)
@@ -957,3 +957,4 @@ def size_on_disk(
     if per_item:
         return per_item_size(item, per_item=per_item)
     return total_size(item)
+
