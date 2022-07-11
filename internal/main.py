@@ -12,8 +12,8 @@ if __name__ == '__main__':
     MAX_CLUSTER_SIZE = 600 * Unit.GB
 
     SOURCE, HR_NAME, cluster_prepend, dp = "1JM4RkZxbV65gDGFVWvqRiCL_lpD-EuVA", "KG Freeleech", 'KG', 'Films'
-    SOURCE, HR_NAME, cluster_prepend, dp = "1XvhVCE1s1uRZgx3fFTnKITPTXszVZ1eC", "Series", 'Series', 'BGFA_Series'
     SOURCE, HR_NAME, cluster_prepend, dp = "1uo8fbXVIfx3DLQAP1Q60lpEumzGISpBw", "Films", 'Films', 'BGFA_Films'
+    SOURCE, HR_NAME, cluster_prepend, dp = "1XvhVCE1s1uRZgx3fFTnKITPTXszVZ1eC", "Series", 'Series', 'BGFA_Series'
     DEST = "0AEaJmSa7kQbMUk9PVA"
     copy_log = 'copy.log'
 
@@ -29,9 +29,9 @@ if __name__ == '__main__':
     with DriveService() as gdrive:
         # initial values
         # WARNING: Make sure new_folder is updated (if NEW_FOLDER==False)
-        new_folder = "12RAZlGpwveRgqyd0d_j3pgIrWZfawXQi"
+        new_folder = "163orvcimW2p8tcoqS0X_DlrZuP-Yjfxt"
         link = f"https://drive.google.com/drive/u/2/folders/{new_folder}"
-        cluster_name = f'{cluster_prepend}_5'
+        cluster_name = f'{cluster_prepend}_1'
         cluster: Cluster[Item] = Cluster()
         all_copied = False
         size_hint = None
