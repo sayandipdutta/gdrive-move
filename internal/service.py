@@ -12,6 +12,7 @@
 
 
 from functools import cache
+from io import TextIOWrapper
 import json
 import os
 from pathlib import Path
@@ -188,6 +189,76 @@ class DriveService(SupportRich):
                 self.delete(node)
                 if root['ancestors']:
                     root['ancestors'][-1]['nitems'] -= 1
+
+    def move_tree(
+        self,
+        tree: FileTree,
+        at: ItemID,
+        source: ItemID = '',
+        name: str = '',
+        log: bool = True,
+    ):
+        total_size = sum(value['size'] for value in tree.values())
+        self.progress.log('size =' , format_size(total_size))
+        task_id = self.progress.add_task("Moving tree...", total=total_size, show_speed=True)
+        if log:
+            with open(f'move_tree_log_{source}.log', 'w+') as logf:
+                self._move_tree_helper(tree, at, task_id, logfile=logf, name=name)
+        else:
+            self._move_tree_helper(tree, at, task_id, name=name)
+        self.progress.update(task_id, completed=total_size)
+
+
+    def _move_tree_helper(
+        self,
+        tree: FileTree,
+        at: ItemID,
+        task_id: TaskID,
+        indent: str = '',
+        name: str = '',
+        logfile: TextIOWrapper | None = None
+    ):
+        text = f'{indent}{name}\n'
+        print(text, file=logfile)
+        indent += '\t'
+        all_files_moved = True
+        for item, value in tree.items():
+            val_name = value["info"].name
+            text = f'{indent}{val_name}\n'
+            if value['kind'] == "File":
+                if not value['info'].trashed:
+                    try:
+                        self.move(value['info'], destination=at, supportsAllDrives=True)
+                        print(text, file=logfile)
+                        self.progress.advance(task_id, advance=value['size'])
+                        for ancestor in value['ancestors']:
+                            ancestor['size'] -= value['size']
+                        ancestor['nitems'] -= 1
+                        del tree[item]
+                    except (TimeoutError, HttpError):
+                        all_files_moved = False
+                        pass
+            else:
+                if not value['info'].trashed:
+                    folder = self.create_folder(
+                        value['info'].name,
+                        destination=at,
+                        supportsAllDrives=True
+                    )
+                    all_files_moved = self._move_tree_helper(
+                        value['items'],
+                        folder.id,
+                        task_id=task_id,
+                        name=val_name,
+                        indent=indent,
+                        logfile=logfile
+                    )
+                    for ancestor in value['ancestors']:
+                        ancestor['size'] -= value['size']
+                    ancestor['nitems'] -= 1
+                    del tree[item]
+        if all_files_moved:
+            self.delete(item)
 
     @overload
     def list_dir(
