@@ -129,6 +129,7 @@ class DriveService(SupportRich):
         file_tree = FileTree()
         item = self.search_by_id(source)
         assert isinstance(item, Folder), "Can only build FileTree from Folder."
+        self.progress.log("Building tree...")
 
         def _recursor(
             source: Folder,
@@ -159,6 +160,7 @@ class DriveService(SupportRich):
                 folder['nitems'] += 1
             return file_tree
         file_tree = _recursor(item, file_tree, from_=from_)
+        self.progress.log("Tree built.")
         return file_tree
 
     def is_contained(self, item: File, destination: ItemID) -> bool:
