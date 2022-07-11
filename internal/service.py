@@ -504,10 +504,11 @@ class DriveService(SupportRich):
             except HttpError as err:
                 self.progress.log("ERROR: occurred while moving.", err,
                                   log_locals=True)
+                raise
             except TimeoutError as err:
                 self.progress.log("ERROR: occurred while moving.", err,
                                   log_locals=True)
-            return categorize(resp)
+                raise
 
     @folder_to_id
     def copy(
