@@ -125,6 +125,8 @@ class DriveService(SupportRich):
 
         return creds
 
+        
+
     def build_tree(self, source: ItemID, *, from_: Iterable[Item] | None = None) -> FileTree:
         file_tree = FileTree()
         item = self.search_by_id(source)
@@ -152,6 +154,7 @@ class DriveService(SupportRich):
                     item_table['kind'] = 'File'
                     item_table['info'] = it
                     item_table['ancestors'] = (new_ancestors)
+                    item_table['size'] = it.size
                     folder['size'] += it.size
                 else:
                     folder['items'] = _recursor(
