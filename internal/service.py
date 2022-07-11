@@ -251,6 +251,7 @@ class DriveService(SupportRich):
                 "service_account": self.creds,
                 "id": folder_id,
                 "fields": "files(id, name, mimeType, md5Checksum, size, parents)",
+                "fields": "files(id, name, mimeType, trashed, md5Checksum, size, parents)",
             }
             self.progress.log("Started searching for all files.")
             dir_listing_task = self.progress.add_task(
@@ -286,6 +287,7 @@ class DriveService(SupportRich):
                     fields=(
                         "nextPageToken, "
                         "files(id, name, mimeType, md5Checksum, size, parents)"
+                        "files(id, name, mimeType, trashed, md5Checksum, size, parents)"
                     ),
                 ).execute()
                 results.extend(response.get('files', []))
@@ -395,6 +397,7 @@ class DriveService(SupportRich):
                     addParents=destination,
                     removeParents=previous_parents,
                     fields='id, parents'
+                    fields='id, name, mimeType, trashed, md5Checksum, size, parents',
                 ).execute()
             except HttpError as err:
                 self.progress.log("ERROR: occurred while moving.", err,
@@ -540,6 +543,7 @@ class DriveService(SupportRich):
             item = self.service.files().create(
                 body=file_metadata,
                 fields="id, name, mimeType, md5Checksum, size, parents"
+                fields="id, name, mimeType, trashed, md5Checksum, size, parents",
             ).execute()
         except HttpError as err:
             self.progress.log("[red]ERROR: While creating folder.", err)
@@ -591,6 +595,7 @@ class DriveService(SupportRich):
                     fields=(
                         'nextPageToken, '
                         'files(id, name, mimeType, md5Checksum, size, parents)'
+                        'files(id, name, mimeType, trashed, trashed, md5Checksum, size, parents)'
                     ),
                     pageToken=page_token,
                     **kwargs
@@ -638,6 +643,7 @@ class DriveService(SupportRich):
             supportsAllDrives=True,
             supportsTeamDrives=True,
             fields="id, name, mimeType, md5Checksum, size, parents" + _fields
+            fields="id, name, mimeType, trashed, md5Checksum, size, parents" + _fields
         ).execute()
         if response:
             return item
@@ -676,6 +682,7 @@ class DriveService(SupportRich):
             q=f"'{folder_id}' in parents",
             spaces='drive',
             fields='nextPageToken, files(id, name, mimeType, md5Checksum, size, parents)',
+            fields='nextPageToken, files(id, name, mimeType, trashed, md5Checksum, size, parents)',
         ).execute().get('files', [])
         for item in items:
             self.update_permission(item['id'], recurse=True)
