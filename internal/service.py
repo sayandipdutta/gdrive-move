@@ -377,7 +377,7 @@ class DriveService(SupportRich):
         rc_cmd = shlex.split(f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
         size_bytes_done = 0
-        printed_once = False
+        total_done = 0
         prev_done = 0
         no_download = 0
         with open(cwd.parent / 'internal' / 'autorclone.log', 'w+', encoding='utf-8', buffering=1) as fh:
@@ -420,6 +420,10 @@ class DriveService(SupportRich):
                     response_processed = result.stdout.replace('\0', '')
                     response_processed_json = json.loads(response_processed)
                     size_bytes_done = int(response_processed_json['bytes'])
+                    new_done = size_bytes_done - prev_done
+                    if new_done < 0:
+                        new_done = size_bytes_done
+                    total_done += new_done
                     if prev_done == size_bytes_done:
                         no_download += 1
                     else:
@@ -430,20 +434,17 @@ class DriveService(SupportRich):
                         )
                         os.kill(proc.pid, SIGINT)
                         break
-                    if not printed_once:
-                        print(size_bytes_done)
-                        printed_once = True
                     self.progress.update(
                         copy_task,
-                        completed=size_bytes_done,
+                        completed=total_done,
                     )
                     prev_done = size_bytes_done
         self.progress.log(
             "[bold green]COPY:[/bold green] copied -> "
             f"{format_size(size_bytes_done)}"
         )
-        self.progress.update(copy_task, total=size_bytes_done,
-                             completed=size_bytes_done)
+        self.progress.update(copy_task, total=total_done,
+                             completed=total_done)
 
     def delete(self, item: ItemID):
         try:
