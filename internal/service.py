@@ -610,6 +610,8 @@ class DriveService(SupportRich):
                     size_bytes_done = int(response_processed_json['bytes'])
                     if prev_done == size_bytes_done:
                         no_download += 1
+                    else:
+                        no_download = 0
                     if no_download >= 300:
                         self.progress.log(
                             f"No download for {no_download} times.",
