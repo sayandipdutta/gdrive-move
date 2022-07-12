@@ -489,9 +489,12 @@ class DriveService(SupportRich):
 
             items = []
             for each in item:
-                resp = self.move(each, destination=destination)
-                items.append(resp)
-                self.progress.advance(moving_task, advance=1)
+                try:
+                    resp = self.move(each, destination=destination)
+                    items.append(resp)
+                    self.progress.advance(moving_task, advance=1)
+                except (HttpError, TimeoutError) as error:
+                    self.progress.log("ERROR: While moving", error)
             self.progress.log(f"Total top-level folders moved: {total}")
 
             return items
