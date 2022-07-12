@@ -223,7 +223,7 @@ class DriveService(SupportRich):
         print(text, file=logfile)
         indent += '\t'
         all_files_moved = True
-        for item, value in tree.items():
+        for item, value in list(tree.items()):
             val_name = value["info"].name
             text = f'{indent}{val_name}\n'
             if value['kind'] == "File":
@@ -238,6 +238,7 @@ class DriveService(SupportRich):
                         del tree[item]
                     except (TimeoutError, HttpError):
                         all_files_moved = False
+
             else:
                 if not value['info'].trashed:
                     folder = self.create_folder(
@@ -253,12 +254,12 @@ class DriveService(SupportRich):
                         indent=indent,
                         logfile=logfile
                     )
-                    for ancestor in value['ancestors']:
-                        ancestor['size'] -= value['size']
-                    ancestor['nitems'] -= 1
-                    del tree[item]
-        if all_files_moved:
-            self.delete(item)
+                    if all_files_moved and value['size'] == 0 and value['nitems'] == 0:
+                        self.delete(item)
+                        value['ancestors'][-1]['nitems'] -= 1
+                        del tree[item]
+                    else:
+                        all_files_moved = False
         return all_files_moved
 
     @overload
