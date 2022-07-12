@@ -429,7 +429,9 @@ class DriveService(SupportRich):
                     completed=size,
                     total=size
                 )
-                yield Cluster(cluster[:], size, item_count)
+                cluster_ = Cluster(cluster[:], size, item_count)
+                self.progress.log(f"Current cluster: {cluster_}")
+                yield cluster_
                 nclusters += 1
                 if nclusters >= max_clusters:
                     return None
@@ -445,7 +447,9 @@ class DriveService(SupportRich):
             item_count += 1
             cluster.append(item)
             size += item_size
-        yield Cluster(cluster[:], size, item_count)
+        cluster_ = Cluster(cluster[:], size, item_count)
+        self.progress.log(f"Current cluster: {cluster_}")
+        yield cluster_
         self.progress.update(clustering_task, completed=size, total=size)
 
     @overload
