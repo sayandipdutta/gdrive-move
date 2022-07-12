@@ -1,12 +1,12 @@
-# HACK: Try to copy in separate process, and communicate to update progress.
+# HACK: Try to copy in separate process, and communicate to update progress. ✅
 # PERF: Check which functions take the longest.
 # PERF: Try async or threading/multiprocessing.
-# OPTIMIZE: Build a complete tree, and reuse when needed.
+# OPTIMIZE: Build a complete tree, and reuse when needed. ✅
 # OPTIMIZE: Use cache.
 # FIX: Write tests.
 # TODO: Add custom errors.
 # TODO: Put all the settings in config file.
-# TODO: Init git.
+# TODO: Init git. ✅
 # TODO: Add logging.
 # TODO: Add docstring.
 
@@ -196,16 +196,18 @@ class DriveService(SupportRich):
         source: ItemID = '',
         name: str = '',
         log: bool = True,
-    ):
+    ) -> bool:
         total_size = sum(value['size'] for value in tree.values())
         self.progress.log('size =' , format_size(total_size))
         task_id = self.progress.add_task("Moving tree...", total=total_size, show_speed=True)
+        all_files_moved = False
         if log:
             with open(f'move_tree_log_{source}.log', 'w+') as logf:
-                self._move_tree_helper(tree, at, task_id, logfile=logf, name=name)
+                all_files_moved = self._move_tree_helper(tree, at, task_id, logfile=logf, name=name)
         else:
-            self._move_tree_helper(tree, at, task_id, name=name)
+            all_files_moved = self._move_tree_helper(tree, at, task_id, name=name)
         self.progress.update(task_id, completed=total_size)
+        return all_files_moved
 
 
     def _move_tree_helper(
@@ -216,7 +218,7 @@ class DriveService(SupportRich):
         indent: str = '',
         name: str = '',
         logfile: TextIOWrapper | None = None
-    ):
+    ) -> bool:
         text = f'{indent}{name}\n'
         print(text, file=logfile)
         indent += '\t'
@@ -236,7 +238,6 @@ class DriveService(SupportRich):
                         del tree[item]
                     except (TimeoutError, HttpError):
                         all_files_moved = False
-                        pass
             else:
                 if not value['info'].trashed:
                     folder = self.create_folder(
@@ -258,6 +259,7 @@ class DriveService(SupportRich):
                     del tree[item]
         if all_files_moved:
             self.delete(item)
+        return all_files_moved
 
     @overload
     def list_dir(
