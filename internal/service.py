@@ -207,6 +207,7 @@ class DriveService(SupportRich):
         else:
             all_files_moved = self._move_tree_helper(tree, at, task_id, name=name)
         self.progress.update(task_id, completed=total_size)
+        self.progress.log(f"{all_files_moved=}")
         return all_files_moved
 
 
