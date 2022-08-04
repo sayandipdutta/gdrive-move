@@ -163,3 +163,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+Films.db.db
+test_logging.py
+flagged_films.csv
+internal/flagged.py
