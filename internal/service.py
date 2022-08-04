@@ -669,8 +669,10 @@ class DriveService(SupportRich):
         # FIX: Handle FileNotFoundError or KeyError
         cwd = config.getpath('PATHS', 'rclone_path',
                              fallback=Path()).expanduser()
-        log_path = config.getpath(
+        log_path: Path = config.getpath(
             'PATHS', 'log_path', fallback=Path()).expanduser()
+        if not log_path.exists():
+            log_path.mkdir()
         rc_cmd = shlex.split(
             f'rclone rc --rc-addr="localhost:{port}" core/stats')
         start = time.perf_counter()
