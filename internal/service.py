@@ -59,7 +59,7 @@ SCOPES = [
 
 
 class DriveService(SupportRich):
-    max_search_pages: int = 50
+    max_search_pages: int = 500
     page_size: int = 100
 
     def __init__(self, *, console: Optional[Console] = None):
@@ -166,6 +166,15 @@ class DriveService(SupportRich):
         self.progress.log("Tree built.")
         return file_tree
 
+    def save_tree(self, tree: FileTree, path: Path):
+        pass
+
+    def load_tree(self, path: Path) -> FileTree:
+        pass
+
+    def move_tr(self, tree: FileTree, src: ItemID, dest: ItemID, size: int) -> FileTree:
+        pass
+
     def is_contained(self, item: File, destination: ItemID) -> bool:
         escaped_name = item.name.replace("'", "\\'")
         query = f"name = '{escaped_name}'"
@@ -202,7 +211,7 @@ class DriveService(SupportRich):
         task_id = self.progress.add_task("Moving tree...", total=total_size, show_speed=True)
         all_files_moved = False
         if log:
-            with open(f'move_tree_log_{source}.log', 'w+') as logf:
+            with open(f'move_tree_log_{source}.log', 'w+', buffering=1) as logf:
                 all_files_moved = self._move_tree_helper(tree, at, task_id, logfile=logf, name=name)
         else:
             all_files_moved = self._move_tree_helper(tree, at, task_id, name=name)
@@ -220,18 +229,18 @@ class DriveService(SupportRich):
         name: str = '',
         logfile: TextIOWrapper | None = None
     ) -> bool:
-        text = f'{indent}{name}\n'
-        print(text, file=logfile)
+        text = f'{indent}{name}'
+        print(text, file=logfile, flush=True)
         indent += '\t'
         all_files_moved = True
         for item, value in list(tree.items()):
             val_name = value["info"].name
-            text = f'{indent}{val_name}\n'
+            text = f'{indent}{val_name}'
             if value['kind'] == "File":
                 if not value['info'].trashed:
                     try:
                         self.move(value['info'], destination=at, supportsAllDrives=True)
-                        print(text, file=logfile)
+                        print(text, file=logfile, flush=True)
                         self.progress.advance(task_id, advance=value['size'])
                         for ancestor in value['ancestors']:
                             ancestor['size'] -= value['size']
@@ -396,6 +405,112 @@ class DriveService(SupportRich):
             return items_, len(items_)
         return items_
 
+    def list_dir_resp(
+        self,
+        folder_id: str,
+        *,
+        extra_fields: tuple[str, ...] = tuple(),
+        log: Optional[bool] = False,
+    ) -> list[dict]:
+        # TODO: Implement lazy loading.
+        """
+        Get contents of a folder.
+        """
+        items: list[dict] = []
+        default_fields = ["id", "name", "mimeType", "trashed", "md5Checksum", "size", "parents"]
+        file_fields = ', '.join( (*default_fields, *extra_fields) )
+        fields = f'nextPageToken, files({file_fields})'
+
+        dir_listing_task = None
+        if log:
+            self.progress.log("Started searching for top-level files/folder.")
+            dir_listing_task = self.progress.add_task(
+                "[blue]Listing files in dir", total=None)
+
+        try:
+            page_token = None
+            search_pages = 0
+            results = []
+            while search_pages < self.max_search_pages:
+                response = self.service.files().list(
+                    q=f"'{folder_id}' in parents",
+                    spaces='drive',
+                    corpora='allDrives',
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    pageToken=page_token,
+                    pageSize=self.page_size,
+                    fields=fields,
+                ).execute()
+                results.extend(response.get('files', []))
+                page_token = response.get('nextPageToken')
+                if page_token is None:
+                    break
+                search_pages += 1
+        except HttpError as err:
+            self.progress.log("[bold red]ERROR:[/bold red]",
+                              "While listing directory.", err, log_locals=True)
+            if log:
+                if dir_listing_task is not None:
+                    self.progress.stop_task(dir_listing_task)
+
+            return items
+
+        if log:
+            if dir_listing_task is not None:
+                self.progress.update(dir_listing_task, total=1, completed=1)
+            self.progress.log(f"{len(results)} items found.")
+
+        return results
+
+    def list_dir_resp_gen(
+        self,
+        folder_id: str,
+        *,
+        extra_fields: tuple[str, ...] = tuple(),
+        log: Optional[bool] = False,
+    ) -> Generator[dict, None, None]:
+        # TODO: Implement lazy loading.
+        """
+        Get contents of a folder.
+        """
+        items: list[dict] = []
+        default_fields = ["id", "name", "mimeType", "trashed", "md5Checksum", "size", "parents"]
+        file_fields = ', '.join( (*default_fields, *extra_fields) )
+        fields = f'nextPageToken, files({file_fields})'
+
+        try:
+            page_token = None
+            search_pages = 0
+            results = []
+            while search_pages < self.max_search_pages:
+                response = self.service.files().list(
+                    q=f"'{folder_id}' in parents",
+                    spaces='drive',
+                    corpora='allDrives',
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    pageToken=page_token,
+                    pageSize=self.page_size,
+                    fields=fields,
+                ).execute()
+                results.extend(response.get('files', []))
+                page_token = response.get('nextPageToken')
+                if page_token is None:
+                    break
+                search_pages += 1
+        except HttpError as err:
+            self.progress.log("[bold red]ERROR:[/bold red]",
+                              "While listing directory.", err, log_locals=True)
+
+
+        for item in results:
+            if item['mimeType'] == FOLDER_MIME_TYPE:
+                yield from self.list_dir_resp_gen(item['id'], extra_fields=extra_fields, log=log)
+            else:
+                yield item
+
+
     def make_cluster(
         self,
         items: Iterable[Item],
@@ -450,8 +565,8 @@ class DriveService(SupportRich):
             size += item_size
         cluster_ = Cluster(cluster[:], size, item_count)
         self.progress.log(f"Current cluster: {cluster_}")
-        yield cluster_
         self.progress.update(clustering_task, completed=size, total=size)
+        yield cluster_
 
     @overload
     def move(
@@ -481,7 +596,7 @@ class DriveService(SupportRich):
         destination: ItemID,
         **kwargs: bool
     ) -> Item | list[Item]:
-        if not isinstance(item, File | Folder):
+        if isinstance(item, Cluster):
             total = len(list(item))
             moving_task = self.progress.add_task(
                 "[magenta]Moving files",
@@ -734,7 +849,8 @@ class DriveService(SupportRich):
         self,
         id: str,
         *extra_fields: str,
-        response: Literal[True]
+        response: Literal[True],
+        **kwargs
     ) -> Response:
         ...
 
@@ -743,7 +859,8 @@ class DriveService(SupportRich):
         self,
         id: str,
         *extra_fields: str,
-        response: Literal[False] = False
+        response: Literal[False] = False,
+        **kwargs
     ) -> Item:
         ...
 
@@ -751,7 +868,8 @@ class DriveService(SupportRich):
         self,
         id: str,
         *extra_fields: str,
-        response: bool = False
+        response: bool = False,
+        **kwargs
     ) -> Item | Response:
         # TODO: merge with search
         _fields = f", {', '.join(extra_fields)}" if extra_fields else ''
@@ -759,7 +877,8 @@ class DriveService(SupportRich):
             fileId=id,
             supportsAllDrives=True,
             supportsTeamDrives=True,
-            fields="id, name, mimeType, trashed, md5Checksum, size, parents" + _fields
+            fields="id, name, mimeType, trashed, md5Checksum, size, parents" + _fields,
+            **kwargs
         ).execute()
         if response:
             return item
