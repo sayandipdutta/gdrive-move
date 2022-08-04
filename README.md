@@ -1,7 +1,7 @@
 # BGFA_rclone
 Manage files for BGFA.
 
-** NOTE: Minimum version of python required: Python 3.10+ **
+**NOTE: Minimum version of python required: Python 3.10+**
 
 ## Usage
 First you need to generate credentials.json and token.json files from Google Developer Console. For more instructions see [AutoRClone Guide](AutoRClone/README.md). Once you have downloaded the `credentials.json` and `token.json` files, you need to place the files in `internal` directory.
