@@ -21,7 +21,8 @@ traceback.install()
 
 def load_config():
     config_folder = Path.cwd().absolute()
-    config_file = config_folder / 'appconfig.ini'
+    config_file = config_folder / 'internal'/ 'appconfig.ini'
+    print(config_file)
     config = ConfigParser(
         interpolation=ExtendedInterpolation(),
         converters={'path': Path}
