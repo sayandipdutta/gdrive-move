@@ -6,8 +6,10 @@ from dotenv import dotenv_values
 from rich import pretty
 from rich import traceback
 
+env_file = 'secret.env' if Path('secret.env').exists() else 'shared.env'
+
 env = {
-    **dotenv_values('secret.env'),
+    **dotenv_values(env_file),
     **os.environ,
 }
 TOKEN = env["TOKEN"]
