@@ -1,5 +1,7 @@
-# BGFA_rclone
-Manage files for BGFA.
+<img src="https://img.shields.io/badge/python-3.10-blue">
+
+# gdrive-move
+Move files to drive folders or shared drives without limit.
 
 **NOTE: Minimum version of python required: Python 3.10+**
 
