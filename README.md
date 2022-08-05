@@ -16,7 +16,7 @@ Then you need to generate credentials.json and token.json files from Google Deve
 Replace fields in [shared.env](shared.env) and [internal](./internal/appconfig.ini) with appropriate values. Then run the following commands to install the dependencies.
 
 ```shell
-$ pip install -r requirements.txt
+$ python3.10 -m pip install -r requirements.txt
 ```
 
 In order to move files from one folder to another:
